@@ -1,3 +1,4 @@
+// DEPRECATED — data now served from API. Safe to remove after testing.
 import { offers } from './offers';
 import { prices } from './prices';
 import { services } from './services';

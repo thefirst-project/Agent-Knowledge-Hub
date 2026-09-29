@@ -1,3 +1,4 @@
+// DEPRECATED — data now served from API. Safe to remove after testing.
 const allBranchIds = ['handsome-pretty-abu-dhabi', 'tres-jolie-fujairah', 'body-slim-abu-dhabi'];
 
 export const offers = [

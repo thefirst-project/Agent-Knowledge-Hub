@@ -1,9 +1,9 @@
 import BranchSelector from './BranchSelector';
-import { branches } from '../data/branches';
+import { useBranchContext } from '../context/BranchContext';
 
-function Sidebar({ currentPath, language = 'english', selectedBranchId, onBranchChange, onLanguageChange, onNavigate }) {
+function Sidebar({ currentPath, language = 'english', onLanguageChange, onNavigate }) {
+  const { selectedBranch } = useBranchContext();
   const isArabic = language === 'arabic';
-  const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) || branches[0];
   const labels = isArabic
     ? { dashboard: 'لوحة التحكم', services: 'الخدمات', offers: 'العروض', prices: 'الأسعار', quickReplies: 'إجابات سريعة', callFlow: 'دليل المكالمة', workspace: 'مساحة العمل', online: 'قاعدة المعرفة متصلة', english: 'English' }
     : { dashboard: 'Dashboard', services: 'Services', offers: 'Offers', prices: 'Prices', quickReplies: 'Quick Replies', callFlow: 'Call Flow', workspace: 'Workspace', online: 'Knowledge base online', english: 'العربية' };
@@ -30,12 +30,12 @@ function Sidebar({ currentPath, language = 'english', selectedBranchId, onBranch
       <div className="brand">
         <div className="brand-mark">H&amp;P</div>
         <div>
-          <strong>{isArabic ? selectedBranch.nameAr : selectedBranch.name}</strong>
-          <span>{isArabic ? selectedBranch.locationAr : selectedBranch.location}</span>
+          <strong>{selectedBranch ? (isArabic ? selectedBranch.nameAr : selectedBranch.name) : (isArabic ? 'قاعدة المعرفة' : 'Knowledge Hub')}</strong>
+          <span>{selectedBranch ? (isArabic ? selectedBranch.locationAr : selectedBranch.location) : ''}</span>
         </div>
       </div>
       <div className="sidebar-branch-selector">
-        <BranchSelector language={language} selectedBranchId={selectedBranchId} onBranchChange={onBranchChange} />
+        <BranchSelector language={language} />
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
@@ -56,6 +56,16 @@ function Sidebar({ currentPath, language = 'english', selectedBranchId, onBranch
             </a>
           );
         })}
+        <span aria-hidden="true" style={{ borderTop: '1px solid #292a3e', margin: '14px 8px 8px' }} />
+        <a
+          className={`nav-item${currentPath === '#/admin' ? ' active' : ''}`}
+          href="#/admin"
+          onClick={onNavigate}
+          style={{ color: currentPath === '#/admin' ? undefined : '#77798f', fontSize: '15px' }}
+        >
+          <span className="nav-icon" aria-hidden="true">⚙</span>
+          Admin Panel
+        </a>
       </nav>
 
       <div className="sidebar-footer">

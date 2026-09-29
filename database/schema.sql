@@ -1,0 +1,161 @@
+CREATE TABLE IF NOT EXISTS branches (
+  id SERIAL PRIMARY KEY,
+  name_en VARCHAR(255) NOT NULL,
+  name_ar VARCHAR(255) NOT NULL,
+  city_en VARCHAR(255),
+  city_ar VARCHAR(255),
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  address_en TEXT,
+  address_ar TEXT,
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  google_maps_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS services (
+  id SERIAL PRIMARY KEY,
+  branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+  name_en VARCHAR(255) NOT NULL,
+  name_ar VARCHAR(255) NOT NULL,
+  category VARCHAR(255),
+  description_en TEXT,
+  description_ar TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+ALTER TABLE services
+ADD COLUMN IF NOT EXISTS details JSONB NOT NULL DEFAULT '{}'::JSONB;
+
+CREATE TABLE IF NOT EXISTS media (
+  id SERIAL PRIMARY KEY,
+  service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+  title_en VARCHAR(255),
+  title_ar VARCHAR(255),
+  caption_en TEXT,
+  caption_ar TEXT,
+  thumbnail_url TEXT,
+  full_url TEXT,
+  download_url TEXT,
+  branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+  file_type VARCHAR(20) DEFAULT 'image',
+  tags TEXT[],
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS call_flow_steps (
+  id SERIAL PRIMARY KEY,
+  service_id INTEGER REFERENCES services(id) ON DELETE CASCADE,
+  branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+  step_order INTEGER NOT NULL,
+  label_en VARCHAR(255),
+  label_ar VARCHAR(255),
+  content_en TEXT,
+  content_ar TEXT,
+  tip_en TEXT,
+  tip_ar TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS quick_replies (
+  id SERIAL PRIMARY KEY,
+  branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+  category VARCHAR(255),
+  title_en VARCHAR(255),
+  title_ar VARCHAR(255),
+  body_en TEXT,
+  body_ar TEXT,
+  tags TEXT[],
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS offers (
+  id SERIAL PRIMARY KEY,
+  branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+  title_en VARCHAR(255),
+  title_ar VARCHAR(255),
+  description_en TEXT,
+  description_ar TEXT,
+  valid_until DATE,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS prices (
+  id SERIAL PRIMARY KEY,
+  service_id INTEGER REFERENCES services(id) ON DELETE CASCADE NOT NULL,
+  branch_id INTEGER REFERENCES branches(id) ON DELETE CASCADE,
+  price DECIMAL(10, 2),
+  currency VARCHAR(10) DEFAULT 'AED',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'branch_admin',
+  branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMP DEFAULT NULL
+);
+
+ALTER TABLE branches
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE services
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE media
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE call_flow_steps
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE quick_replies
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE offers
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE prices
+  ADD COLUMN IF NOT EXISTS created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id) ON DELETE SET NULL;

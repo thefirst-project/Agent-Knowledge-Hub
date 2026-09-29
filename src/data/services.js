@@ -1,3 +1,4 @@
+// DEPRECATED — data now served from API. Safe to remove after testing.
 const question = (questionEn, questionAr, answerEn, answerAr) => ({
   questionEn,
   questionAr,

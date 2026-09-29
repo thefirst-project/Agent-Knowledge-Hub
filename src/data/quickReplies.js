@@ -1,3 +1,4 @@
+// DEPRECATED — data now served from API. Safe to remove after testing.
 export const quickReplies = [
   {
     id: 'booking-availability',

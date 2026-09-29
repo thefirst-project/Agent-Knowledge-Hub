@@ -1,3 +1,4 @@
+// DEPRECATED — data now served from API. Safe to remove after testing.
 const branchPrompt = {
   en: 'Which center would be most convenient for you: Handsome & Pretty in Abu Dhabi, Tres Jolie in Fujairah, or Body Slim in Abu Dhabi?',
   ar: 'أي مركز أنسب لك: هاندسم آند بريتي في أبوظبي، تريز جولي في الفجيرة، أم بودي سليم في أبوظبي؟',

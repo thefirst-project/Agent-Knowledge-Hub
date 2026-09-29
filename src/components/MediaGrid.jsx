@@ -3,6 +3,39 @@ import { useEffect, useState } from 'react';
 function MediaGrid({ items, language = 'english' }) {
   const ar = language === 'arabic';
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [downloadError, setDownloadError] = useState(null);
+
+  async function downloadImage(item) {
+    setDownloadingId(item.id);
+    setDownloadError(null);
+    try {
+      const response = await fetch(item.download_url);
+      if (!response.ok) {
+        throw new Error(`Image request failed (${response.status}).`);
+      }
+
+      const image = await response.blob();
+      if (!image.size || !image.type.startsWith('image/')) {
+        throw new Error('The download URL did not return a valid image.');
+      }
+
+      const extension = image.type.split('/')[1].split('+')[0].replace('jpeg', 'jpg');
+      const objectUrl = URL.createObjectURL(image);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `image-${item.id}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch (error) {
+      console.error('Unable to download image:', error);
+      setDownloadError({ id: item.id });
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!selectedMedia) return undefined;
@@ -69,11 +102,23 @@ function MediaGrid({ items, language = 'english' }) {
                   </button>
                 )}
                 {item.type !== 'video' && item.download_url && (
-                  <a className="media-download-button" download href={item.download_url}>
-                    {ar ? 'تنزيل' : 'Download'}
-                  </a>
+                  <button
+                    className="media-download-button"
+                    disabled={downloadingId === item.id}
+                    onClick={() => downloadImage(item)}
+                    type="button"
+                  >
+                    {downloadingId === item.id
+                      ? (ar ? 'جارٍ التنزيل…' : 'Downloading…')
+                      : (ar ? 'تنزيل' : 'Download')}
+                  </button>
                 )}
               </div>
+              {downloadError?.id === item.id && (
+                <p className="media-download-error" role="alert">
+                  {ar ? 'تعذر تنزيل الصورة. يرجى المحاولة مرة أخرى.' : 'Unable to download this image. Please try again.'}
+                </p>
+              )}
             </div>
           </article>
         ))}

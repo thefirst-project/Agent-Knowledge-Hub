@@ -1,12 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../api/client';
+import { normalizeQuickReply } from '../api/normalize';
+import ApiStatus from '../components/ApiStatus';
 import CopyButton from '../components/CopyButton';
 import PageHeader from '../components/PageHeader';
-import { quickReplies } from '../data/quickReplies';
+import { useBranchContext } from '../context/BranchContext';
 
 function QuickReplies({ language = 'english' }) {
   const ar = language === 'arabic';
+  const { selectedBranchId, loading: branchesLoading, error: branchError } = useBranchContext();
+  const [quickReplies, setQuickReplies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const categories = ['All', ...new Set(quickReplies.map((reply) => reply.category))];
+
+  useEffect(() => {
+    if (!selectedBranchId) {
+      setQuickReplies([]);
+      setLoading(false);
+      return undefined;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    apiFetch(`/api/quick-replies?branch_id=${encodeURIComponent(selectedBranchId)}`, { signal: controller.signal })
+      .then((data) => setQuickReplies(data.map(normalizeQuickReply)))
+      .catch((fetchError) => {
+        if (fetchError.name !== 'AbortError') setError(fetchError.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [selectedBranchId]);
+
+  const categories = ['All', ...new Set(quickReplies.map((reply) => reply.category).filter(Boolean))];
   const visibleReplies = activeCategory === 'All'
     ? quickReplies
     : quickReplies.filter((reply) => reply.category === activeCategory);
@@ -17,6 +45,8 @@ function QuickReplies({ language = 'english' }) {
     Complaints: ar ? 'الشكاوى' : 'Complaints',
     Promotions: ar ? 'العروض' : 'Promotions',
   };
+  const isLoading = branchesLoading || loading;
+  const loadError = branchError || error;
 
   return (
     <div className="quick-replies-page" dir={ar ? 'rtl' : 'ltr'}>
@@ -28,6 +58,8 @@ function QuickReplies({ language = 'english' }) {
       />
 
       <section aria-label={ar ? 'تصفية الإجابات حسب الفئة' : 'Filter replies by category'}>
+        <ApiStatus loading={isLoading} error={loadError} language={language} />
+        {!(isLoading || loadError) && <>
         <div className="quick-reply-category-tabs" role="group" aria-label={ar ? 'فئات الإجابات' : 'Reply categories'}>
           {categories.map((category) => (
             <button
@@ -57,6 +89,7 @@ function QuickReplies({ language = 'english' }) {
             </article>
           ))}
         </div>
+        </>}
       </section>
     </div>
   );

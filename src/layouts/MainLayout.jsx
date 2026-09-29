@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { cloneElement } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
-import { branches } from '../data/branches';
+import { useBranchContext } from '../context/BranchContext';
 
 function MainLayout({ children, currentPath, onNavigate }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [language, setLanguage] = useState('english');
-  const [selectedBranchId, setSelectedBranchId] = useState(branches[0].id);
+  const { selectedBranchId } = useBranchContext();
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -20,15 +20,13 @@ function MainLayout({ children, currentPath, onNavigate }) {
         <Sidebar
           currentPath={currentPath}
           language={language}
-          selectedBranchId={selectedBranchId}
-          onBranchChange={setSelectedBranchId}
           onLanguageChange={setLanguage}
           onNavigate={() => setSidebarOpen(false)}
         />
       </div>
       <div className="main-column">
-        <Header language={language} selectedBranchId={selectedBranchId} onLanguageChange={setLanguage} onMenuToggle={() => setSidebarOpen((isOpen) => !isOpen)} />
-        <main className="main-content">{cloneElement(children, { language, selectedBranchId })}</main>
+        <Header language={language} selectedBranchId={selectedBranchId} onMenuToggle={() => setSidebarOpen((isOpen) => !isOpen)} />
+        <main className="main-content">{cloneElement(children, { language })}</main>
       </div>
     </div>
   );
