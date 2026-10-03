@@ -31,12 +31,6 @@ function Dashboard({ language = 'english' }) {
       tone: 'green',
       href: '#/quick-replies',
     },
-    {
-      title: ar ? 'الصور والفيديوهات' : 'Photos & Videos',
-      description: ar ? 'الوسائط متاحة داخل كل خدمة وعلاج.' : 'Media is available inside each service & treatment.',
-      icon: '▧',
-      tone: 'rose',
-    },
   ];
 
   const popularResources = [

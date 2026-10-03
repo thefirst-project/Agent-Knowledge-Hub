@@ -37,7 +37,10 @@ export function createResourceRouter({
     }
 
     const entries = Object.entries(body).filter(([key]) => key !== 'id' && key !== 'created_at');
-    const allowed = new Set([...columns, ...inputFields]);
+    const allowed = new Set([
+      ...[...columns].filter((field) => !excludedFromRead.includes(field)),
+      ...inputFields,
+    ]);
     const unknownFields = entries.map(([key]) => key).filter((key) => !allowed.has(key));
 
     if (unknownFields.length > 0) {
@@ -102,10 +105,12 @@ export function createResourceRouter({
     const result = await pool.query(
       `UPDATE "${table}"
       SET is_deleted = false, deleted_at = NULL, updated_at = NOW()
-      ${trackActors ? ', deleted_by = NULL' : ''}
+      ${trackActors ? ', deleted_by = NULL, updated_by = $2' : ''}
       WHERE id = $1 AND is_deleted = true
       RETURNING ${selectFields}`,
-      [Number(request.params.id)],
+      trackActors
+        ? [Number(request.params.id), request.user?.id ?? null]
+        : [Number(request.params.id)],
     );
     if (result.rowCount === 0) {
       response.status(404).json({ error: 'Deleted record not found.' });
@@ -194,10 +199,11 @@ export function createResourceRouter({
     }
     const names = entries.map(([key]) => `"${key}"`).join(', ');
     const values = entries.map(([, value]) => value);
+    if (trackActors) values.push(request.user?.id ?? null, request.user?.id ?? null);
     const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
     const result = await pool.query(
       `INSERT INTO "${table}" (${names}${trackActors ? ', created_by, updated_by' : ''}, updated_at)
-      VALUES (${placeholders}${trackActors ? ', NULL, NULL' : ''}, NOW())
+      VALUES (${placeholders}, NOW())
       RETURNING ${selectFields}`,
       values,
     );
@@ -234,10 +240,11 @@ export function createResourceRouter({
       .map(([key], index) => `"${key}" = $${index + 1}`)
       .join(', ');
     const values = entries.map(([, value]) => value);
+    if (trackActors) values.push(request.user?.id ?? null);
     values.push(Number(request.params.id));
     const result = await pool.query(
       `UPDATE "${table}" SET ${assignments}, updated_at = NOW()
-      ${trackActors ? ', updated_by = NULL' : ''}
+      ${trackActors ? `, updated_by = $${values.length - 1}` : ''}
       WHERE id = $${values.length} AND is_deleted = false
       RETURNING ${selectFields}`,
       values,
@@ -257,10 +264,12 @@ export function createResourceRouter({
     const result = await pool.query(
       `UPDATE "${table}"
       SET is_deleted = true, deleted_at = NOW(), updated_at = NOW()
-      ${trackActors ? ', deleted_by = NULL' : ''}
+      ${trackActors ? ', deleted_by = $2' : ''}
       WHERE id = $1 AND is_deleted = false
       RETURNING ${selectFields}`,
-      [Number(request.params.id)],
+      trackActors
+        ? [Number(request.params.id), request.user?.id ?? null]
+        : [Number(request.params.id)],
     );
     if (result.rowCount === 0) {
       response.status(404).json({ error: 'Record not found.' });

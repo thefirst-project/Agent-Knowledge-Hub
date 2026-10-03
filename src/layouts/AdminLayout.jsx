@@ -1,4 +1,5 @@
 import { ToastProvider } from '../components/admin/Toast';
+import { useAuth } from '../context/AuthContext';
 import '../styles/admin.css';
 
 const sections = [
@@ -13,6 +14,7 @@ const sections = [
   ['Users', '/admin/users', 'users'],
   ['Recycle Bin', '/admin/recycle-bin', 'trash'],
   ['Audit log', '/admin/audit', 'audit'],
+  ['My Profile', '/admin/profile', 'users'],
 ];
 
 const pageTitles = Object.fromEntries(sections.map(([label, path]) => [`#${path}`, label]));
@@ -35,7 +37,9 @@ function AdminIcon({ type }) {
 }
 
 function AdminLayout({ children, currentPath = '#/admin' }) {
+  const { user, isSuperAdmin, logout } = useAuth();
   const title = pageTitles[currentPath] || 'Admin Panel';
+  const visibleSections = sections.filter(([label]) => isSuperAdmin || !['Users', 'Recycle Bin'].includes(label));
   return (
     <ToastProvider>
       <div className="admin-shell">
@@ -46,7 +50,7 @@ function AdminLayout({ children, currentPath = '#/admin' }) {
           </a>
           <nav className="admin-navigation" aria-label="Admin navigation">
             <span className="admin-nav-label">Manage</span>
-            {sections.map(([label, to, icon]) => (
+            {visibleSections.map(([label, to, icon]) => (
               <a key={to} href={`#${to}`} aria-label={label} className={`admin-nav-link${currentPath === `#${to}` ? ' active' : ''}`}>
                 <AdminIcon type={icon} />
                 <span>{label}</span>
@@ -58,7 +62,15 @@ function AdminLayout({ children, currentPath = '#/admin' }) {
         <div className="admin-content-shell">
           <header className="admin-topbar">
             <h2>{title}</h2>
-            <a href="#/">← Back to Agent App</a>
+            <div className="admin-account-actions">
+              <span>Welcome, <strong>{user.username}</strong></span>
+              <span className={`admin-role-badge${isSuperAdmin ? ' superadmin' : ''}`}>
+                {isSuperAdmin ? 'Superadmin' : user.role === 'branch_admin' ? 'Branch Admin' : user.role}
+              </span>
+              <a href="#/admin/profile">My Profile</a>
+              <button className="admin-logout-button" onClick={logout} type="button">Logout</button>
+              <a href="#/">← Back to Agent App</a>
+            </div>
           </header>
           <main className="admin-main">
             <div className="admin-global-banner" role="note">

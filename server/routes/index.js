@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { randomBytes, scrypt as scryptCallback } from 'node:crypto';
-import { promisify } from 'node:util';
+import bcrypt from 'bcryptjs';
 import { pool } from '../db.js';
+import { requireSuperAdmin, verifyToken } from '../auth/authMiddleware.js';
+import authRouter from './auth.js';
 import { createResourceRouter } from './resource.js';
 import auditRouter from './audit.js';
 
 const router = Router();
-const scrypt = promisify(scryptCallback);
 
 async function prepareUserEntries(entries) {
   const output = [];
@@ -19,9 +19,7 @@ async function prepareUserEntries(entries) {
       throw new Error('Password must be a string.');
     }
     if (!value) continue;
-    const salt = randomBytes(16).toString('hex');
-    const derivedKey = await scrypt(value, salt, 64);
-    output.push(['password_hash', `scrypt:${salt}:${Buffer.from(derivedKey).toString('hex')}`]);
+    output.push(['password_hash', await bcrypt.hash(value, 12)]);
   }
   return output;
 }
@@ -218,7 +216,21 @@ const resources = [
   },
 ];
 
-router.put('/api/call-flows/reorder', async (request, response) => {
+router.use('/api/auth', authRouter);
+
+const writeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const protectWrites = (request, response, next) => (
+  writeMethods.has(request.method) ? verifyToken(request, response, next) : next()
+);
+for (const path of [
+  '/api/branches', '/api/services', '/api/media', '/api/call-flows',
+  '/api/quick-replies', '/api/offers', '/api/prices',
+]) {
+  router.use(path, protectWrites);
+}
+router.use('/api/users', verifyToken, requireSuperAdmin);
+
+router.put('/api/call-flows/reorder', verifyToken, async (request, response) => {
   const { ids } = request.body || {};
   if (!Array.isArray(ids) || ids.length === 0
     || ids.some((id) => !Number.isSafeInteger(id) || id < 1)
@@ -243,9 +255,9 @@ router.put('/api/call-flows/reorder', async (request, response) => {
     }
     for (const [index, id] of ids.entries()) {
       const result = await client.query(
-        `UPDATE call_flow_steps SET step_order = $1, updated_at = NOW(), updated_by = NULL
+        `UPDATE call_flow_steps SET step_order = $1, updated_at = NOW(), updated_by = $3
         WHERE id = $2 AND is_deleted = false`,
-        [index + 1, id],
+        [index + 1, id, request.user?.id ?? null],
       );
       if (result.rowCount !== 1) throw new Error(`Call flow step ${id} was not found.`);
     }

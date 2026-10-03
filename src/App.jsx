@@ -18,7 +18,11 @@ import AdminCallFlows from './pages/admin/AdminCallFlows';
 import AdminMedia from './pages/admin/AdminMedia';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminRecycleBin from './pages/admin/AdminRecycleBin';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminProfile from './pages/admin/AdminProfile';
+import ProtectedRoute from './components/admin/ProtectedRoute';
 import { BranchProvider } from './context/BranchContext';
+import { AuthProvider } from './context/AuthContext';
 import './styles.css';
 
 const pages = {
@@ -32,6 +36,7 @@ const pages = {
 
 const adminPages = {
   '#/admin': AdminDashboard,
+  '#/admin/dashboard': AdminDashboard,
   '#/admin/branches': AdminBranches,
   '#/admin/services': AdminServices,
   '#/admin/quick-replies': AdminQuickReplies,
@@ -42,9 +47,10 @@ const adminPages = {
   '#/admin/users': AdminUsers,
   '#/admin/recycle-bin': AdminRecycleBin,
   '#/admin/audit': AdminAuditLog,
+  '#/admin/profile': AdminProfile,
 };
 
-function App() {
+function AppRoutes() {
   const [currentPath, setCurrentPath] = useState(window.location.hash || '#/');
 
   useEffect(() => {
@@ -56,13 +62,16 @@ function App() {
   const route = currentPath.split('?')[0];
   const isAdminRoute = route.startsWith('#/admin');
   const Page = (isAdminRoute ? adminPages[route] : pages[route]) || Dashboard;
+  if (route === '#/admin/login') return <AdminLogin />;
   if (isAdminRoute) {
     return (
-      <BranchProvider>
-        <AdminLayout currentPath={route}>
-          <Page />
-        </AdminLayout>
-      </BranchProvider>
+      <ProtectedRoute requireSuperAdmin={route === '#/admin/users' || route === '#/admin/recycle-bin'}>
+        <BranchProvider>
+          <AdminLayout currentPath={route}>
+            <Page />
+          </AdminLayout>
+        </BranchProvider>
+      </ProtectedRoute>
     );
   }
   return (
@@ -72,6 +81,10 @@ function App() {
       </MainLayout>
     </BranchProvider>
   );
+}
+
+function App() {
+  return <AuthProvider><AppRoutes /></AuthProvider>;
 }
 
 export default App;

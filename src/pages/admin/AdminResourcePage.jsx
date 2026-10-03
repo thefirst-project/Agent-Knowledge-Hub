@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiFetch, BASE_URL } from '../../api/client';
+import { apiFetch, authenticatedFetch } from '../../api/client';
 import { ConfirmDialog, DataTable, InfoBanner, SlidePanel } from '../../components/admin/AdminComponents';
 import { useToast } from '../../components/admin/Toast';
 
@@ -108,8 +108,8 @@ export const ADMIN_RESOURCES = {
     title: 'Users', description: 'Manage staff accounts and assigned branch access.', lookups: ['branches'],
     fields: [
       field('username', 'Username', 'text', { required: true }),
-      field('password', 'Password (create only)', 'password', { requiredOnCreate: true }),
-      field('role', 'Role', 'select', { options: ['admin', 'branch_admin', 'agent'].map((value) => ({ value, label: value })) }),
+      field('password', 'Password', 'password', { requiredOnCreate: true }),
+      field('role', 'Role', 'select', { required: true, defaultValue: 'branch_admin', options: ['superadmin', 'admin', 'branch_admin', 'agent'].map((value) => ({ value, label: value })) }),
       { ...sharedBranchField, required: false },
     ],
     columns: [
@@ -175,25 +175,6 @@ function toPayload(form, config) {
   return payload;
 }
 
-async function deleteRequest(path) {
-  let response;
-  try {
-    response = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' });
-  } catch (error) {
-    throw new Error(`Unable to reach the API at ${BASE_URL}. Check that the server is running.`, { cause: error });
-  }
-  if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const body = await response.json();
-      if (typeof body?.error === 'string') message = body.error;
-    } catch {
-      // Preserve the HTTP status text for empty or non-JSON error bodies.
-    }
-    throw new Error(`API request failed (${response.status}): ${message}`);
-  }
-}
-
 function FieldEditor({ definition, value, onChange, lookups }) {
   const common = {
     id: `admin-field-${definition.key}`,
@@ -215,7 +196,7 @@ function FieldEditor({ definition, value, onChange, lookups }) {
   if (definition.type === 'textarea' || definition.type === 'json') {
     return <textarea {...common} rows={definition.type === 'json' ? 8 : 4} spellCheck={definition.type !== 'json'} />;
   }
-  return <input {...common} type={definition.type === 'array' ? 'text' : definition.type || 'text'} min={definition.min} step={definition.step} placeholder={definition.type === 'array' ? 'Separate values with commas' : ''} autoComplete={definition.type === 'password' ? 'new-password' : 'off'} />;
+  return <input {...common} type={definition.type === 'array' ? 'text' : definition.type || 'text'} min={definition.min} step={definition.step} placeholder={definition.type === 'password' && definition.requiredOnCreate && !common.required ? 'Leave blank to keep current password' : definition.type === 'array' ? 'Separate values with commas' : ''} autoComplete={definition.type === 'password' ? 'new-password' : 'off'} />;
 }
 
 export function AdminResourcePage({ resource }) {
@@ -305,7 +286,7 @@ export function AdminResourcePage({ resource }) {
     try {
       const payload = toPayload(form, config);
       const isEditing = Boolean(editing?.id);
-      await apiFetch(`/api/${resource}${isEditing ? `/${editing.id}` : ''}`, {
+      await authenticatedFetch(`/api/${resource}${isEditing ? `/${editing.id}` : ''}`, {
         method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -325,7 +306,7 @@ export function AdminResourcePage({ resource }) {
     setSaving(true);
     try {
       const path = confirm.permanent ? `/api/${resource}/deleted/${confirm.row.id}` : `/api/${resource}/${confirm.row.id}`;
-      await deleteRequest(path);
+      await authenticatedFetch(path, { method: 'DELETE' });
       showToast(confirm.permanent ? 'Record permanently deleted.' : 'Record moved to deleted items.');
       setConfirm(null);
       await loadRows();
@@ -338,7 +319,7 @@ export function AdminResourcePage({ resource }) {
 
   async function restoreRecord(row) {
     try {
-      await apiFetch(`/api/${resource}/${row.id}/restore`, { method: 'POST' });
+      await authenticatedFetch(`/api/${resource}/${row.id}/restore`, { method: 'POST' });
       showToast('Record restored successfully.');
       await loadRows();
     } catch (restoreError) {
@@ -349,7 +330,7 @@ export function AdminResourcePage({ resource }) {
   async function saveOrder() {
     setReordering(true);
     try {
-      await apiFetch('/api/call-flows/reorder', {
+      await authenticatedFetch('/api/call-flows/reorder', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: scopedRows.map((row) => row.id) }),
@@ -444,14 +425,18 @@ export function AdminResourcePage({ resource }) {
         footer={<><button className="admin-button secondary" type="button" disabled={saving} onClick={() => setEditing(null)}>Cancel</button><button className="admin-button primary" type="submit" form="admin-record-form" disabled={saving}>{saving ? 'Saving...' : 'Save changes'}</button></>}
       >
         <form id="admin-record-form" className="admin-form" onSubmit={saveRecord}>
-          {config.fields.filter((definition) => !(resource === 'users' && editing?.id && definition.key === 'password')).map((definition) => (
+          {config.fields.map((definition) => (
             <label className="admin-field" key={definition.key} htmlFor={`admin-field-${definition.key}`}>
               <span>{definition.label}{definition.required && <b aria-hidden="true"> *</b>}</span>
               <FieldEditor
                 definition={{ ...definition, required: definition.required || (definition.requiredOnCreate && !editing?.id) }}
                 value={form[definition.key]}
                 lookups={lookups}
-                onChange={(key, value) => setForm((previous) => ({ ...previous, [key]: value }))}
+                onChange={(key, value) => setForm((previous) => ({
+                  ...previous,
+                  [key]: value,
+                  ...(resource === 'users' && key === 'role' && value === 'superadmin' ? { branch_id: '' } : {}),
+                }))}
               />
             </label>
           ))}

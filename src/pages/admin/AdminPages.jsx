@@ -2,9 +2,11 @@
 import { apiFetch } from '../../api/client';
 import { DataTable, InfoBanner } from '../../components/admin/AdminComponents';
 import { useToast } from '../../components/admin/Toast';
+import { useAuth } from '../../context/AuthContext';
 import { AdminResourcePage } from './AdminResourcePage';
 
 function AdminDashboard() {
+  const { isSuperAdmin } = useAuth();
   const showToast = useToast();
   const [summary, setSummary] = useState(null);
   const [events, setEvents] = useState([]);
@@ -22,7 +24,7 @@ function AdminDashboard() {
           ['quickReplies', apiFetch('/api/quick-replies')],
           ['call-flows', apiFetch('/api/call-flows')],
           ['media', apiFetch('/api/media')],
-          ['users', apiFetch('/api/users')],
+          ...(isSuperAdmin ? [['users', apiFetch('/api/users')]] : []),
           ['audit', apiFetch('/api/audit')],
         ];
         const results = await Promise.allSettled(requests.map(([, request]) => request));
@@ -60,7 +62,7 @@ function AdminDashboard() {
     }
     loadOverview();
     return () => { active = false; };
-  }, [showToast]);
+  }, [isSuperAdmin, showToast]);
 
   const metrics = [
     ['Branches', summary?.branches?.length],
@@ -70,7 +72,7 @@ function AdminDashboard() {
     ['Quick replies', summary?.quickReplies?.length],
     ['Call flows', summary?.['call-flows']?.length],
     ['Media', summary?.media?.length],
-    ['Users', summary?.users?.length],
+    ...(isSuperAdmin ? [['Users', summary?.users?.length]] : []),
   ];
 
   const auditColumns = [

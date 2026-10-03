@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { apiFetch, BASE_URL } from '../../api/client';
+import { apiFetch, authenticatedFetch } from '../../api/client';
 import { DataTable, InfoBanner } from '../../components/admin/AdminComponents';
 import { ConfirmDialog } from '../../components/admin/AdminComponents';
 import { useToast } from '../../components/admin/Toast';
@@ -37,7 +37,7 @@ export function AdminRecycleBin() {
 
   async function restore(row) {
     try {
-      await apiFetch(`/api/${tab}/${row.id}/restore`, { method: 'POST' });
+      await authenticatedFetch(`/api/${tab}/${row.id}/restore`, { method: 'POST' });
       showToast('Record restored.');
       setRows((cur) => cur.filter((r) => r.id !== row.id));
     } catch (err) { showToast(err.message, 'error'); }
@@ -47,17 +47,7 @@ export function AdminRecycleBin() {
     if (!confirm) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/${tab}/deleted/${confirm.row.id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        let message = res.statusText;
-        try {
-          const body = await res.json();
-          if (typeof body?.error === 'string') message = body.error;
-        } catch {
-          // Keep the HTTP status text when the response is not JSON.
-        }
-        throw new Error(`API request failed (${res.status}): ${message}`);
-      }
+      await authenticatedFetch(`/api/${tab}/deleted/${confirm.row.id}`, { method: 'DELETE' });
       showToast('Record permanently deleted.');
       setRows((cur) => cur.filter((r) => r.id !== confirm.row.id));
       setConfirm(null);
